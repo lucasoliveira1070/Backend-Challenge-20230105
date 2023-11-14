@@ -1,4 +1,3 @@
-import * as dotenv from 'dotenv';
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { Cron } from '@nestjs/schedule';
@@ -14,10 +13,9 @@ const unlinkAsync = promisify(unlink);
 export class GetProductsJob {
     private readonly logger = new Logger(GetProductsJob.name);
 
-    @Cron('* * * * *')
+    @Cron('* 12 * * *')
     async handleCron() {
         try {
-            dotenv.config();
             const baseUrl = process.env.PRODUCTS_BASE_URL;
             const files = await axios({ method: 'GET', url: `${baseUrl}index.txt`, responseType: 'json' });
             const filteredFilesList = files.data.split('\n').map(fileName => fileName.split('.')[0]).filter(Boolean);
