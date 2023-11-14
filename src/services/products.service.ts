@@ -1,27 +1,49 @@
+import * as dotenv from 'dotenv'
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import zlib from 'zlib';
-import { createReadStream, createWriteStream } from 'fs';
+import { unlink } from 'fs';
+import { decompressFile } from 'src/utils/decompressFile';
+import { downloadFile } from 'src/utils/downloadFile';
+import { processFirst100Lines } from 'src/utils/processFirst100Lines';
 
 @Injectable()
 export class ProductsService {
-    async downloadAndProcessProducts() {
-        //const filesList = await axios({ method: 'GET', url: 'https://challenges.coode.sh/food/data/json/index.txt', responseType: 'json' })
-        const url = 'https://challenges.coode.sh/food/data/json/products_01.json.gz';
+    async downloadAndProcessProducts(): Promise<void> {
+        dotenv.config()
+        const baseUrl = process.env.PRODUCTS_BASE_URL
+        const files = await axios({ method: 'GET', url: `${baseUrl}index.txt`, responseType: 'json' })
+        const filteredFilesList = files.data.split('\n').map(fileName => fileName.split('.')[0]).filter(Boolean);
 
-        const fileWriteStream = createWriteStream('downloaded_file.gz');
-        const fileReadStream = createReadStream('downloaded_file.gz');
+        for (const element of filteredFilesList) {
+            console.log(`downloading ${element} gzipped file`)
+            let url = `${baseUrl}${element}.json.gz`;
+            let downloadDestination = `downloadedFiles/${element}.json.gz`;
+            let decompressedDestination = `downloadedFiles/${element}.json`;
+            let reducedDestination = `downloadedFiles/${element}_reduced.json`;
 
-        const response = await axios({
-            method: 'GET',
-            url: url,
-            responseType: 'stream',
-            headers: {
-                'Accept-Encoding': 'gzip', // Mention that you accept gzip encoding
-            },
-        })
+            try {
+                await downloadFile(url, downloadDestination);
+                await decompressFile(downloadDestination, decompressedDestination);
+                await processFirst100Lines(decompressedDestination, reducedDestination);
 
-        console.log(response.data)
-
+                // Remove downloaded files
+                unlink(downloadDestination, async (err) => {
+                    if (err) {
+                        console.error('Error deleting the file:', err);
+                    } else {
+                        console.log('Original downloaded file deleted:', downloadDestination);
+                    }
+                });
+                unlink(decompressedDestination, async (err) => {
+                    if (err) {
+                        console.error('Error deleting the file:', err);
+                    } else {
+                        console.log('Original decompressed file deleted:', downloadDestination);
+                    }
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
     }
 }
