@@ -14,7 +14,7 @@ const unlinkAsync = promisify(unlink);
 export class GetProductsJob {
     private readonly logger = new Logger(GetProductsJob.name);
 
-    @Cron(process.env.CRON_JOB_SCHEDULER)
+    @Cron('* * * * *')
     async handleCron() {
         try {
             dotenv.config();
